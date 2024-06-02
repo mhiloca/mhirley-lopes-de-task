@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: NYT_BOOKS_RAW
+    database: NYT_BOOKS
+    schema: RAW
+    tables:
+      - name: BOOKS
+      - name: LISTS

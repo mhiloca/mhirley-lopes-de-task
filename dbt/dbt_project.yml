@@ -1,0 +1,36 @@
+name: 'nyt_books'
+
+config-version: 2
+version: '1.7.15'
+
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'nyt_books'
+
+# These configurations specify where dbt should look for different types of files.
+# The `model-paths` config, for example, states that models in this project can be
+# found in the "models/" directory. You probably won't need to change these!
+analysis-paths: ["analyses"]
+macro-paths: ["macros"]
+model-paths: ["models"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+
+
+clean-targets:         # directories to be removed by `dbt clean`
+  - "target"
+  - "dbt_packages"
+
+models:
+  nyt_books:
+    +enabled: true
+    +materialized: table
+    dynamic_results:
+      +schema: results
+    facts:
+      +schema: facts
+      +tags: facts
+    results:
+      +schema: results
+      +tags: results
