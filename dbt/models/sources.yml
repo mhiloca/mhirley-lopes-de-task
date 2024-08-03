@@ -1,8 +1,8 @@
 version: 2
 
 sources:
-  - name: NYT_BOOKS_RAW
-    database: NYT_BOOKS
+  - name: NYT_RAW
+    database: NYT
     schema: RAW
     tables:
       - name: BOOKS
