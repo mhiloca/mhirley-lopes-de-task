@@ -1,10 +1,15 @@
 from datetime import datetime, timedelta
+import logging
 import requests
 import os
 import pandas as pd
 import time
 import snowflake.connector as sf
 from snowflake.connector.pandas_tools import write_pandas
+
+
+logger = logging.getLogger("NYT_API_BOOKS")
+logger.setLevel(logging.INFO)
 
 
 NYT_API_KEY = os.getenv("NYT_API_KEY")
@@ -24,18 +29,18 @@ SF_CREDENTIALS = dict(
 years = [2023, 2022, 2021]
 
 
+def fetch_week_lists(date: str, api_key: str, api_url: str = API_URL) -> list:
+    request_url = f"{api_url}?published_date={date}&api-key={api_key}"
+    request_headers = {"Accept": "application/json"}
 
-def fetch_week_lists(date: str, api_key:str, api_url:str=API_URL) -> list:
-    requestUrl = f"{api_url}?published_date={date}&api-key={api_key}"
-    requestHeaders = {"Accept": "application/json"}
-
-    response = requests.get(url=requestUrl, headers=requestHeaders)
+    response = requests.get(url=request_url, headers=request_headers)
 
     if response.status_code == 200:
         return response.json()["results"]["lists"]
     else:
-        print(f"[WARN] - Failed to fetch data from {date}: status: {response.status_code}")
+        logger.warning(f"Failed to fetch data from {date}: status: {response.status_code}")
         return []
+
 
 def extract_boor_uri(dict_list):
     return [d["book_uri"] for d in dict_list]
@@ -49,17 +54,17 @@ for year in years:
 
     current_date = start_date
     while current_date <= end_date:
-        print(f"[INFO] - Fetching data for week of {current_date.strftime(DATE_FORMAT)}")
+        logger.info(f"Fetching data for week of {current_date.strftime(DATE_FORMAT)}")
         week_lists = fetch_week_lists(date=current_date.strftime(DATE_FORMAT), api_key=NYT_API_KEY)
         
         if week_lists:
-            print(f"[INFO] - Creating df with list")
+            logger.info(f"Creating df with list")
             for wl in week_lists:
                 df_list = pd.DataFrame(wl)
-                df_list = df_list[["list_id", "list_name"]]
+                df_list = df_list[["list_id", "list_name", "display_name", "updated", "list_image", "books"]]
                 df_lists.append(df_list)
 
-                print(f"[INFO] - Creating df with books")
+                logger.info(f"Creating df with books")
                 df_book = pd.DataFrame(wl["books"])
                 df_book["list_id"] = wl["list_id"]
                 df_book = df_book[[
@@ -98,7 +103,7 @@ success, nchunks, nrows, _ = write_pandas(
         overwrite=True
     )
 
-print(f"[INFO] - Successfully loaded {nrows} rows into RAW.LISTS in Snowflake")
+logger.info(f"Successfully loaded {nrows} rows into RAW.LISTS in Snowflake")
 
 success, nchunks, nrows, _ = write_pandas(
         conn,
