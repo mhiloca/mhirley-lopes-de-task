@@ -25,8 +25,8 @@ if __name__ == "__main__":
     while published_dates_miss:
         fnd.extract_data(published_dates_miss, lists_dfs, books_dfs, published_dates_miss)
 
-    final_lists_df = utils.create_final_df(source_list=lists_dfs, unique_id=['list_id'])
-    final_books_df = utils.create_final_df(source_list=books_dfs, unique_id=['title'])
+    final_lists_df = utils.create_final_df(source_list=lists_dfs, unique_id=['list_id', 'published_date'])
+    final_books_df = utils.create_final_df(source_list=books_dfs, unique_id=['title', 'list_id', 'published_date'])
     final_published_dates_df = pd.DataFrame(dates, columns=["PUBLISHED_DATE"])
 
     persistence.upload_df(final_lists_df, "LISTS", "RAW")
