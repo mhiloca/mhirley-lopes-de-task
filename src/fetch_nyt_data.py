@@ -1,117 +1,47 @@
-from datetime import datetime, timedelta
 import logging
 import requests
 import os
-import pandas as pd
 import time
-import snowflake.connector as sf
-from snowflake.connector.pandas_tools import write_pandas
+import utils
 
-
-logger = logging.getLogger("NYT_API_BOOKS")
+logger = logging.getLogger("NYT_EXTRACTION")
 logger.setLevel(logging.INFO)
-
 
 NYT_API_KEY = os.getenv("NYT_API_KEY")
 API_URL = "https://api.nytimes.com/svc/books/v3/lists/overview.json"
 DATE_FORMAT = "%Y-%m-%d"
 
-SF_CREDENTIALS = dict(
-    account=os.getenv("SF_ACCOUNT"),
-    user=os.getenv("SF_USER"),
-    password=os.getenv("SF_PASSWORD"),
-    role=os.getenv("SF_ROLE"),
-    warehouse=os.getenv("SF_WAREHOUSE"),
-    database=os.getenv("SF_DATABASE"),
-    schema=os.getenv("SF_SCHEMA")
-)
 
-years = [2023, 2022, 2021]
-
-
-def fetch_week_lists(date: str, api_key: str, api_url: str = API_URL) -> list:
+def _fetch_weekly_lists(date: str, api_key: str = NYT_API_KEY, api_url: str = API_URL) -> requests.models.Response:
     request_url = f"{api_url}?published_date={date}&api-key={api_key}"
     request_headers = {"Accept": "application/json"}
 
     response = requests.get(url=request_url, headers=request_headers)
-
-    if response.status_code == 200:
-        return response.json()["results"]["lists"]
-    else:
-        logger.warning(f"Failed to fetch data from {date}: status: {response.status_code}")
-        return []
+    return response
 
 
-def extract_boor_uri(dict_list):
-    return [d["book_uri"] for d in dict_list]
+def extract_data(dates: list, lists_dfs: list, books_dfs:list, published_dates_miss: list) -> None:
+    for dt in dates:
+        str_date = dt.strftime(DATE_FORMAT)
+        logger.info(f"Fetching data for week of {str_date}")
+        response = _fetch_weekly_lists(str_date)
 
+        if response.status_code == 200:
+            results = response.json()["results"]
+            results_dict = {
+                "published_date": results["published_date"],
+                "best_sellers_date": results["bestsellers_date"]
+            }
+            week_lists = results["lists"]
+            utils.create_dfs(week_lists, lists_dfs, results_dict)
+            logger.info(f"Created Lists DataFrame for weekly data published on {results['published_date']}")
+            for week in week_lists:
+                results_dict["list_id"] = week["list_id"]
+                utils.create_dfs(week["books"], books_dfs, results_dict)
+                logger.info(f"Created Books DataFrame for list {week['list_id']}")
 
-df_books = []
-df_lists = []
-for year in years:
-    start_date = datetime(year, 1, 1)
-    end_date = datetime(year, 12, 31)
+        else:
+            logger.warning(f"Failed to retrive data for published_date {str_date}")
+            published_dates_miss.append(dt)
 
-    current_date = start_date
-    while current_date <= end_date:
-        logger.info(f"Fetching data for week of {current_date.strftime(DATE_FORMAT)}")
-        week_lists = fetch_week_lists(date=current_date.strftime(DATE_FORMAT), api_key=NYT_API_KEY)
-        
-        if week_lists:
-            logger.info(f"Creating df with list")
-            for wl in week_lists:
-                df_list = pd.DataFrame(wl)
-                df_list = df_list[["list_id", "list_name", "display_name", "updated", "list_image", "books"]]
-                df_lists.append(df_list)
-
-                logger.info(f"Creating df with books")
-                df_book = pd.DataFrame(wl["books"])
-                df_book["list_id"] = wl["list_id"]
-                df_book = df_book[[
-                    "list_id", 
-                    "title", 
-                    "author", 
-                    "book_uri", 
-                    "primary_isbn10",
-                    "publisher", 
-                    "rank", 
-                    "weeks_on_list", 
-                    "created_date"
-                ]]
-                
-                df_books.append(df_book)
-
-            current_date += timedelta(days=7)
-            time.sleep(12)
-        
-df_final_lists = pd.concat(df_lists)
-df_final_lists = df_final_lists.drop_duplicates()
-
-df_final_books = pd.concat(df_books)
-df_final_books = df_final_books.drop_duplicates()
-
-schema = os.getenv("SF_SCHEMA")
-
-conn = sf.connect(**SF_CREDENTIALS)
-
-success, nchunks, nrows, _ = write_pandas(
-        conn,
-        df_final_lists,
-        schema =  SF_CREDENTIALS["schema"],
-        table_name="LISTS",
-        auto_create_table=True,
-        overwrite=True
-    )
-
-logger.info(f"Successfully loaded {nrows} rows into RAW.LISTS in Snowflake")
-
-success, nchunks, nrows, _ = write_pandas(
-        conn,
-        df_final_books,
-        schema =  SF_CREDENTIALS["schema"],
-        table_name="BOOKS",
-        auto_create_table=True,
-        overwrite=True
-    )
-
-print(f"Successfully loaded {nrows} rows into RAW.BOOKS Snowflake")
+        time.sleep(12)
