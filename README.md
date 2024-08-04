@@ -1,4 +1,4 @@
-# Deel // Home Task
+# NYT Books data extraction
 
 This is a project that aims to fetch data from the New Yout Times - Books API
 
