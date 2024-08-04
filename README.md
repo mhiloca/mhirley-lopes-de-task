@@ -1,12 +1,6 @@
-# Deel // Home Task
+# NYT Books data extraction
 
 This is a project that aims to fetch data from the New Yout Times - Books API
-
-I have set up a user for a temp Snowflake Trial Account, so please go to the [app.snowflake.com](https://uezpxfr-tt82220.snowflakecomputing.com) and login as:
-````
-username: deel
-password: deel123
-````
 
 All the tables are already there, but if you'd like to run the project from scratch please follow the bellow instructions:
 
