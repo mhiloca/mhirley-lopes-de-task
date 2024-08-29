@@ -2,6 +2,8 @@ from datetime import timedelta
 import pandas as pd
 import numpy as np
 
+from src.main import published_dates_miss
+
 
 def create_dfs(source_list: list, target_list: list, add_columns: dict) -> None:
     for source in source_list:
@@ -25,3 +27,10 @@ def generate_week_dates(start_date, num_weeks):
         dates.append(current_date)
         current_date += timedelta(weeks=1)
     return dates
+
+def clean_missing_dates(dates: list, published_dates_miss: list):
+    dates.clear()
+    for i in range(len(published_dates_miss)):
+        dates.append(published_dates_miss[i])
+    published_dates_miss.clear()
+

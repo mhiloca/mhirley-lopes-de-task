@@ -21,9 +21,10 @@ published_dates_miss = []
 if __name__ == "__main__":
     dates = utils.generate_week_dates(START_DATE, NUM_WEEKS)
     fnd.extract_data(dates, lists_dfs, books_dfs, published_dates_miss)
-
-    while published_dates_miss:
-        fnd.extract_data(published_dates_miss, lists_dfs, books_dfs, published_dates_miss)
+    utils.clean_missing_dates(dates, published_dates_miss)
+    while dates:
+        fnd.extract_data(dates, lists_dfs, books_dfs, published_dates_miss)
+        utils.clean_missing_dates(dates, published_dates_miss)
 
     final_lists_df = utils.create_final_df(source_list=lists_dfs, unique_id=['list_id', 'published_date'])
     final_books_df = utils.create_final_df(source_list=books_dfs, unique_id=['title', 'list_id', 'published_date'])
